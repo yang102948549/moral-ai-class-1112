@@ -1,0 +1,904 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>생성형 AI와 함께하는 도덕수업</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&display=swap">
+<style>
+:root{
+  --bg:#fff; --ink:#111; --body:#2f2f2f; --sub:#5c5c5c; --past:#b8b6b0;
+  --face:#f4f3ef; --face2:#e9e8e3; --line:#d6d4cc; --key:#a3303d;
+  --sans:"Pretendard Variable",Pretendard,"Malgun Gothic",sans-serif;
+  --serif:"Gowun Batang","Noto Serif KR",serif;
+  --ease:cubic-bezier(.25,.7,.2,1);
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#000;overflow:hidden}
+body{font-family:var(--sans);color:var(--ink);-webkit-font-smoothing:antialiased;word-break:keep-all}
+#viewport{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#000}
+#stage{width:1920px;height:1080px;position:relative;flex:none;background:var(--bg);overflow:hidden}
+.slide{position:absolute;inset:0;padding:120px 150px;display:none;flex-direction:column;background:var(--bg);animation:fade .35s ease both}
+.slide.active{display:flex;z-index:1}
+.slide.leaving{display:flex;z-index:0;animation:none}
+@keyframes fade{from{opacity:0}}
+h1,h2,h3,p{margin:0;font-weight:inherit}
+.label{font-size:26px;font-weight:700;color:var(--sub);letter-spacing:.02em;margin-bottom:34px}
+.label.big,.key .label.big{font-size:56px;font-weight:800;color:var(--ink);letter-spacing:-.03em;line-height:1.3}
+.key .label{color:var(--key)}
+.q{font-family:var(--serif);font-weight:700;font-size:96px;line-height:1.36;letter-spacing:-.02em}
+.q.m{font-size:84px}
+.q.s{font-size:70px}
+.t{font-family:var(--serif);font-weight:700;font-size:60px;line-height:1.35;letter-spacing:-.02em}
+.p{font-size:34px;line-height:1.6;color:var(--body)}
+.k{color:var(--key)}
+.center{flex:1;display:flex;flex-direction:column;justify-content:center}
+.slot{display:grid}.slot>*{grid-area:1/1}
+.row{display:flex}
+
+/* 어두운 질문 장면 */
+.dark{background:#111;color:#fff}
+.dark .label{color:#8d8d8d}
+.dark .past,.dark .past *{color:#4a4a4a !important}
+
+/* ── 클릭과 효과 ──────────────────────────────
+   data-step="n" : n번째 클릭에 나타남(0이면 처음부터)
+   data-fx       : 나타나기 · 떠오르기 · 펼치기 · 차례로 · 타자
+   data-delay    : 늦게 시작(초)                                   */
+[data-step]{transition:opacity .5s ease}
+[data-step]:not(.vis){opacity:0;pointer-events:none}
+[data-until]{transition:opacity .4s ease}
+[data-until]:not(.vis){opacity:0;pointer-events:none}
+.slide [data-fx]{animation:none}
+.slide.active [data-fx]:not([data-step]),.slide.active [data-fx].vis{animation:var(--a,none) var(--t,.6s) var(--ease) var(--d,0s) both}
+[data-fx="나타나기"]{--a:fx-fade}
+[data-fx="펼치기"]{--a:fx-wipe;--t:.8s}
+@keyframes fx-fade{from{opacity:0}to{opacity:1}}
+@keyframes fx-up{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes fx-rise{from{transform:translateY(102%)}to{transform:none}}
+@keyframes fx-wipe{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 -2% 0 0)}}
+/* 떠오르기: 줄마다 아래에서 올라온다(줄은 스크립트가 나눈다) */
+.ln{display:block;overflow:hidden;padding-bottom:.08em}
+.ln>span{display:inline-block}
+[data-fx="떠오르기"] .ln>span{transform:translateY(102%)}
+.slide.active [data-fx="떠오르기"]:not([data-step]) .ln>span,.slide.active [data-fx="떠오르기"].vis .ln>span{animation:fx-rise .7s var(--ease) calc(var(--d,0s) + var(--i,0)*.1s) both}
+/* 차례로: 묶음 안의 항목이 순서대로 */
+[data-fx="차례로"]>*{opacity:0}
+.slide.active [data-fx="차례로"]:not([data-step])>*,.slide.active [data-fx="차례로"].vis>*{animation:fx-up .55s var(--ease) calc(var(--d,0s) + var(--i,0)*var(--gap,.14s)) both}
+
+.ct{transition:color .5s ease,opacity .5s ease,background .5s ease}
+.past,.past *{color:var(--past) !important}
+.strike{color:var(--past)!important;text-decoration:line-through;text-decoration-thickness:4px}
+
+/* 면 */
+.plane{background:var(--face);border-radius:4px;padding:48px 50px}
+.plane.ink{background:#111;color:#fff}
+.plane.ink .n{color:#9a9a9a}
+.plane .n{font-size:24px;font-weight:800;color:var(--sub);letter-spacing:.06em;margin-bottom:18px}
+.plane .h{font-family:var(--serif);font-weight:700;font-size:64px;letter-spacing:-.02em;line-height:1.2}
+.plane .d{font-size:32px;line-height:1.55;margin-top:22px;color:var(--body)}
+.plane.ink .d{color:#d6d6d6}
+.planes{display:flex;gap:20px}
+.planes>.plane{flex:1}
+.bar{background:#111;color:#fff;border-radius:4px;padding:30px 48px;font-family:var(--serif);font-weight:700;font-size:46px;letter-spacing:-.02em}
+
+/* 표지 (앱 첫 화면처럼 왼쪽 제목 + 오른쪽 모자이크) */
+.cover{padding:0;flex-direction:row}
+.cover .ctext{flex:1;position:relative;padding:150px 70px 150px 150px;display:flex;flex-direction:column;justify-content:center}
+.cover .rule{height:6px;background:var(--ink);width:120px;margin-bottom:56px}
+.cover h1{font-family:var(--sans);font-weight:800;font-size:150px;line-height:1.12;letter-spacing:-.06em}
+.cover .subt{font-family:var(--serif);font-size:44px;color:var(--body);margin-top:48px;letter-spacing:-.01em}
+.cover .by{position:absolute;left:150px;bottom:100px;font-size:26px;line-height:1.5;color:var(--sub)}
+.cover .by b{display:block;font-weight:700;color:var(--ink);font-size:38px}
+.tiles{width:720px;flex:none;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr)}
+.tiles>div{background-size:cover;background-position:center 15%}
+.tiles .w2{grid-column:span 2}
+
+/* 얼굴 격자 (앱 첫 화면의 모자이크) */
+.faces{display:grid;grid-template-columns:repeat(4,180px);grid-auto-rows:180px;gap:10px;--gap:.05s}
+.faces>div{background-size:cover;background-position:center;border-radius:2px}
+.faces .empty{background:#262626;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:96px;color:#fff;font-weight:700}
+.qwrap{flex:1;display:flex;align-items:center;justify-content:space-between;gap:80px}
+
+/* 세로 인물 띠 */
+.strip{position:absolute;top:0;right:0;bottom:0;display:flex;gap:10px}
+.strip>div{width:250px;background-size:cover;background-position:center top}
+
+/* 카드 안 보조 설명 */
+.plane .d.e{font-size:26px;line-height:1.6;color:var(--sub);margin-top:14px}
+.steps{margin:26px 0 0;padding:0;list-style:none;counter-reset:st;display:flex;flex-direction:column;gap:12px}
+.steps li{counter-increment:st;display:flex;gap:16px;align-items:flex-start;font-family:var(--serif);font-size:30px;line-height:1.45;color:var(--body)}
+.steps li::before{content:counter(st);flex:none;width:38px;height:38px;border-radius:50%;background:#111;color:#fff;font-family:var(--sans);font-size:20px;font-weight:800;display:flex;align-items:center;justify-content:center;margin-top:3px}
+/* 19 강조는 검정, 나머지는 회색 */
+.q.mute{color:#a9a69e}
+.q.mute .k{color:var(--ink)}
+
+/* 7 성취기준 */
+.code{display:table;background:#111;color:#fff;border-radius:999px;padding:10px 30px;font-size:30px;font-weight:700;letter-spacing:.03em;margin-bottom:30px}
+.std{font-family:var(--serif);font-size:64px;line-height:1.6;letter-spacing:-.02em;font-weight:700}
+.std .rest{transition:color .6s ease}
+.std.on .rest{color:var(--past)}
+.mosaic{display:grid;grid-template-columns:repeat(2,330px);grid-auto-rows:330px;gap:10px;flex:none}
+.mosaic>div{background-size:cover;background-position:center top}
+
+/* 10 */
+.chips{display:flex;gap:10px;margin-top:22px;flex-wrap:wrap}
+.chips span{background:#111;color:#fff;font-size:28px;font-weight:700;padding:10px 20px;border-radius:2px}
+
+/* 11 생각 지도 */
+.mapwrap{position:absolute;inset:0;display:flex}
+.mapart{width:560px;flex:none;background:url(art/afghanistan.webp) center 20%/cover}
+.mapbody{flex:1;padding:120px 110px 0 90px;position:relative}
+.map{position:relative;height:640px;margin-top:20px}
+.map .node{position:absolute;font-family:var(--serif);font-size:42px;font-weight:700;line-height:1.35;letter-spacing:-.02em;background:var(--face);padding:26px 30px;border-radius:4px}
+.map .node.main{background:#111;color:#fff}
+.map .node.end{background:var(--face2)}
+.map .tag{display:block;font-family:var(--sans);font-size:22px;font-weight:800;color:var(--sub);letter-spacing:.06em;margin-bottom:8px}
+.map .main .tag{color:#9a9a9a}
+.map svg{position:absolute;inset:0}
+.map path{stroke:#111;stroke-width:3;fill:none}
+
+/* 14 */
+.lane{display:flex;align-items:center;gap:26px;padding:44px 52px;border-radius:4px;font-family:var(--serif);font-weight:700;font-size:64px;letter-spacing:-.02em}
+.lane .ar{font-family:var(--sans);font-weight:300;color:#9a9a9a}
+
+/* 14 한 줄에서 두 갈래로 */
+.fork{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.fork .root{background:var(--face);padding:30px 80px}
+.fork svg{display:block;flex:none}
+.fork svg path{stroke:#9a9a9a;stroke-width:3;fill:none}
+.forks{display:grid;grid-template-columns:720px 720px;gap:140px}
+.br{display:flex;flex-direction:column}
+.br .bl{font-size:26px;font-weight:800;color:var(--sub);letter-spacing:.04em;text-align:center;margin-bottom:16px}
+.br .lane{justify-content:center;text-align:center;padding:30px 36px;background:var(--face)}
+.br.ai2 .lane{background:#111;color:#fff}
+.br.ai2 .bl{color:var(--ink)}
+.br .dn{text-align:center;font-size:40px;font-weight:300;color:#9a9a9a;line-height:1.5}
+
+/* AI 대화 화면 (시연) */
+.ai{background:#0E0E12;color:#ECECF1;padding:64px 100px 60px}
+.ai .label{color:#A5A0FF}
+.ai .ttl{font-size:64px;font-weight:800;letter-spacing:-.035em;color:#fff}
+.chatwin{flex:1;margin-top:34px;border-radius:24px;background:#1C1C22;border:1px solid #2C2C35;display:flex;overflow:hidden;position:relative}
+.chatside{width:250px;background:#16161B;border-right:1px solid #2A2A32;padding:34px 24px;display:flex;flex-direction:column;gap:16px}
+.chatside .nw{font-size:24px;font-weight:700;color:#E8E8EE;padding:14px 18px;border-radius:12px;background:#24242C}
+.chatside .h{font-size:20px;color:#6E6E7A;margin-top:18px}
+.chatside .it{font-size:22px;color:#9898A4;padding:6px 18px}
+.chatmain{flex:1;display:flex;flex-direction:column;position:relative}
+.chattop{display:flex;align-items:center;gap:12px;padding:22px 40px;border-bottom:1px solid #2A2A32;font-size:24px;font-weight:700;color:#E8E8EE}
+.chattop small{font-size:20px;font-weight:500;color:#6E6E7A}
+.chain.on .layers{animation:fx-fade .6s ease 2.6s both}
+.chatlog{flex:1;padding:44px 80px 20px;display:flex;flex-direction:column;gap:30px;overflow:hidden}
+.greet{position:absolute;inset:0 0 120px;display:flex;align-items:center;justify-content:center;font-size:56px;font-weight:700;color:#fff;letter-spacing:-.03em}
+.greet span{color:#A5A0FF;margin-right:18px}
+.msg-u{align-self:flex-end;max-width:72%;background:#2E2E38;padding:26px 34px;border-radius:28px 28px 8px 28px;font-size:34px;line-height:1.5;letter-spacing:-.02em}
+.msg-a{display:flex;gap:24px;max-width:88%}
+.msg-a .av{flex:none;width:58px;height:58px;border-radius:50%;background:#4F46E5;display:flex;align-items:center;justify-content:center;font-size:30px;color:#fff}
+.msg-a .av::before{content:"✦"}
+.msg-a .tx{font-size:33px;line-height:1.6;color:#E2E2EA;letter-spacing:-.02em;padding-top:6px}
+.inputbar{margin:0 80px 36px;border-radius:24px;background:#26262E;border:1px solid #34343E;padding:24px 30px;display:flex;align-items:center;gap:20px;font-size:28px;color:#77778A}
+.inputbar .send{margin-left:auto;width:54px;height:54px;border-radius:50%;background:#ECECF1;color:#111;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:800}
+.layers{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:22px}
+.layers div{background:#26263A;border:1px solid #3B3A63;border-radius:16px;padding:20px 22px;font-size:28px;font-weight:700;color:#CFCBFF;line-height:1.35}
+.ann{font-size:22px;font-weight:800;color:#A5A0FF;margin-bottom:6px;letter-spacing:.01em}
+.msg-wrap-u{align-self:flex-end;max-width:76%;display:flex;flex-direction:column;align-items:flex-end}
+.msg-wrap-u .msg-u{max-width:100%}
+.chatlog.tight{gap:14px;padding-top:26px}
+.chatlog.tight .msg-u,.chatlog.tight .msg-a .tx{font-size:30px}
+.chatlog.tight .msg-u{padding:16px 28px}
+.chain:not(.on),.after:not(.on){opacity:0 !important}
+.caret::after{content:"▍";color:#A5A0FF;animation:blink 1s steps(1) infinite;margin-left:2px}
+@keyframes blink{50%{opacity:0}}
+/* 16 경고 창 */
+.mback{position:absolute;inset:0;background:rgba(6,6,10,.62)}
+.modal{position:absolute;inset:0;margin:auto;width:820px;height:fit-content;background:#1C1C22;border:1px solid #3B3A63;border-radius:24px;padding:52px 56px 44px;text-align:center}
+.modal::before{content:"!";display:flex;align-items:center;justify-content:center;width:72px;height:72px;margin:0 auto 26px;border-radius:50%;background:#2A2846;color:#A5A0FF;font-size:40px;font-weight:800}
+.modal .msg{font-size:44px;font-weight:800;line-height:1.4;letter-spacing:-.03em;color:#fff}
+.mbtns{display:flex;gap:14px;margin-top:40px}
+.mbtns .mb{flex:1;padding:22px 0;border-radius:14px;background:#26262E;border:1px solid #34343E;font-size:26px;font-weight:700;color:#9898A4}
+.mbtns .mb.pri{background:#ECECF1;border-color:#ECECF1;color:#111}
+
+/* 17 학생? AI? 사이를 오가는 선택 표시 */
+.who2{position:relative;display:flex;width:1160px;margin:90px auto 0;padding:14px;border-radius:999px;background:#222}
+.who2 span{position:relative;z-index:1;flex:1;text-align:center;font-family:var(--sans);font-weight:700;font-size:110px;line-height:1.3;color:#fff;mix-blend-mode:difference}
+.who2 i{position:absolute;top:14px;bottom:14px;left:14px;width:calc(50% - 14px);border-radius:999px;background:#fff;animation:waver 5.5s ease-in-out infinite}
+@keyframes waver{0%,10%{transform:none}28%{transform:translateX(86%)}36%{transform:translateX(72%)}46%,56%{transform:translateX(100%)}70%{transform:translateX(20%)}78%{transform:translateX(34%)}88%,100%{transform:none}}
+
+/* 18 학생-AI 짝 표 */
+.tbl{flex:1;display:flex;flex-direction:column;justify-content:center;gap:16px;counter-reset:r}
+.tr{display:grid;grid-template-columns:90px 1fr 80px 1fr;align-items:stretch}
+.tr:not(.th){counter-increment:r}
+.tr .no{align-self:center;font-size:26px;font-weight:800;color:var(--sub);letter-spacing:.06em}
+.tr:not(.th) .no::before{content:"0" counter(r)}
+.tr .ar{align-self:center;text-align:center;font-size:44px;font-weight:300;color:#9a9a9a}
+.tr:not(.th) .ar::before{content:"→"}
+.tr .hd{font-size:26px;font-weight:800;color:var(--sub);letter-spacing:.06em;padding:0 44px}
+.tbl .cell{font-family:var(--serif);font-size:50px;font-weight:700;letter-spacing:-.02em;line-height:1.3;padding:34px 44px;border-radius:4px;background:var(--face)}
+.tbl .cell.s{color:var(--ink)}
+.tbl .cell.a{font-weight:600;background:#111;color:#fff}
+.tbl .cell p{margin:0}
+.tbl .cell.s{background:var(--face)}
+.tr .hd{color:var(--ink);text-align:center}
+
+/* 앱 캡처 */
+.split{display:flex;gap:80px;flex:1;align-items:center}
+.split .txt{flex:1;display:flex;flex-direction:column;justify-content:center;min-width:0}
+.shot{flex:none;position:relative}
+.shot img{display:block;width:100%;height:auto;border:1px solid var(--line)}
+.stack img.swap{position:absolute;left:0;top:0;background:#fff}
+.bullets{display:flex;flex-direction:column;gap:22px;margin-top:40px}
+.bullets div{font-size:32px;line-height:1.5;color:var(--body);padding-left:28px;border-left:4px solid var(--face2)}
+.bullets div b{color:var(--ink);font-weight:700}
+.key .bullets div{border-left-color:var(--key)}
+/* 25 앱의 결정 칩 */
+.chipbox{display:flex;flex-direction:column;gap:14px;margin-top:20px;counter-reset:cp}
+.chiptitle{font-size:26px;font-weight:800;color:var(--key);letter-spacing:.04em;margin-top:44px}
+.chip b,.chip:not(:has(b))::before{flex:none;width:50px;height:50px;border-radius:50%;background:var(--key);color:#fff;font-family:var(--sans);font-size:24px;font-weight:800;display:flex;align-items:center;justify-content:center}
+.chip:not(:has(b))::before{counter-increment:cp;content:counter(cp)}
+.chip{display:flex;align-items:center;gap:20px;background:#fff;color:#111;font-size:30px;font-weight:600;line-height:1.4;padding:18px 28px 18px 18px;border:2px solid #ead3d6;border-radius:999px;box-shadow:0 5px 0 #ead3d6}
+.ab{display:flex;flex-direction:column;gap:24px;margin-top:10px}
+.ab div{display:flex;gap:28px;align-items:baseline;font-family:var(--serif);font-weight:700;font-size:60px;line-height:1.35;letter-spacing:-.02em}
+.ab div b{flex:none;font-family:var(--sans);font-weight:800;font-size:1.05em;color:var(--key);width:56px}
+
+/* 26 앱 조사 화면: 캡처 대신 HTML로 그려 선명하게 */
+.mock{background:#fff;border:1px solid var(--line);color:#222;font-family:var(--sans);letter-spacing:-.01em}
+.mock .mq{margin:26px 26px 0 150px;background:#f0dfe1;padding:22px 28px;font-size:23px;line-height:1.75}
+.mock .ma{margin:24px 26px 0;border-left:4px solid var(--key);padding:4px 0 6px 28px;font-size:23px;line-height:1.75}
+.mock .src{font-size:20px;color:#888;margin-top:14px}
+.mock .src b{color:#555;font-weight:800}
+.mock .btn{display:inline-block;margin-top:18px;border:2px solid #111;border-radius:6px;padding:10px 24px;font-size:20px;font-weight:800}
+.mock .sug{display:flex;flex-wrap:wrap;gap:12px;background:#f4f3ef;margin-top:24px;padding:18px 18px 14px}
+.mock .sug span{background:#fff;border:1px solid #e3c6cb;border-radius:4px;padding:12px 18px;font-size:20px}
+.mock .in{display:flex;gap:12px;background:#f4f3ef;padding:0 18px 18px}
+.mock .in div{flex:1;border:2px solid #ddd;background:#fff;border-radius:4px;padding:18px;font-size:21px;color:#999}
+.mock .in b{background:var(--key);color:#fff;border-radius:4px;padding:18px 30px;font-size:21px}
+
+/* 23 앱 대사 창 */
+.say{align-self:stretch;background:#f3e0e2;padding:24px 34px 26px;border-radius:4px;margin-top:6px}
+.say .who{font-size:22px;font-weight:800;color:var(--key);margin-bottom:6px}
+/* 24 두 길의 결과 */
+.res{display:flex;flex-direction:column;gap:14px;margin-top:40px}
+.res>div{padding:24px 30px;border-radius:4px;background:#f3e0e2}
+.res>div.b{background:var(--face)}
+.res .tg{display:inline-block;font-size:20px;font-weight:800;color:#fff;background:var(--key);padding:6px 14px;margin-bottom:12px}
+.res .b .tg{background:#111}
+.res .rt{font-family:var(--serif);font-size:38px;font-weight:700;letter-spacing:-.02em;line-height:1.3}
+.res .rd{font-size:26px;line-height:1.55;color:var(--body);margin-top:8px}
+/* 26 정책 제안서·피드백 대화 (앱 화면을 HTML로) */
+.doc,.fb{position:absolute;inset:0;background:#fff;border:1px solid var(--line);color:#222;overflow:hidden;font-family:var(--sans)}
+.doc .bar2{display:flex;justify-content:space-between;background:var(--key);color:#fff;font-size:20px;font-weight:800;padding:16px 30px;letter-spacing:.02em}
+.doc .bar2 span{opacity:.75;font-weight:600;margin-left:10px}
+.doc .in2{padding:22px 34px}
+.doc h4{margin:0;font-family:var(--serif);font-size:44px;font-weight:700;padding-bottom:16px;border-bottom:4px solid #111}
+.doc .sum{margin-top:20px;background:#f6ebec;border-left:6px solid var(--key);padding:16px 22px;font-size:21px;line-height:1.6}
+.doc .sum .hh{color:var(--key);font-size:20px;margin-bottom:4px}
+.doc .sum div{display:flex;gap:18px}.doc .sum b{flex:none;width:44px}
+.doc .sec{margin-top:18px}
+.doc .sec h5{margin:0;font-family:var(--serif);font-size:26px;font-weight:700;border-bottom:2px solid #111;padding-bottom:6px}
+.doc .sec h5 i{font-style:normal;color:var(--key);margin-right:16px}
+.doc .sec p{margin:8px 0 0;font-size:21px;line-height:1.6}
+.fb{padding:24px 26px;display:flex;flex-direction:column;gap:16px}
+.fb .me{align-self:flex-end;max-width:85%;background:#f0dfe1;padding:16px 22px;font-size:22px;line-height:1.6;text-align:right}
+.fb .who{font-size:20px;font-weight:800;color:var(--key)}
+.fb .ot{font-family:var(--serif);font-size:23px;line-height:1.7;margin-top:2px}
+.fb .sug2{display:flex;flex-wrap:wrap;gap:10px;background:#f4f3ef;margin:6px -26px -24px;padding:16px 26px 20px;flex:1;align-content:flex-start}
+.fb .sug2 span{background:#fff;border:1px solid #e3c6cb;border-radius:4px;padding:10px 16px;font-size:19px;height:fit-content}
+
+/* 마지막 장: 웹앱 첫 화면을 배경으로, 가운데 유리 상자에 QR과 주소 */
+.home{padding:0;align-items:center;justify-content:center}
+.home .hbg{position:absolute;inset:0;background:url(capture/01-home.png) center/cover}
+.home .hbg::after{content:"";position:absolute;inset:0;background:rgba(20,20,24,.18)}
+.glass{position:relative;display:flex;flex-direction:column;align-items:center;padding:48px 64px 44px;border-radius:36px;
+  background:linear-gradient(135deg,rgba(255,255,255,.62),rgba(255,255,255,.34));
+  border:1.5px solid rgba(255,255,255,.75);
+  box-shadow:0 30px 80px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.9);
+  -webkit-backdrop-filter:blur(26px) saturate(1.5);backdrop-filter:blur(26px) saturate(1.5)}
+.glass img{width:440px;height:440px;display:block;image-rendering:pixelated;border-radius:18px;background:#fff}
+.glass .qrl{font-size:26px;font-weight:700;color:#333;margin-top:28px}
+.glass .url{font-size:52px;font-weight:800;letter-spacing:-.02em;color:#111;margin-top:6px;white-space:nowrap}
+
+/* 마지막 장 */
+.close{flex-direction:row;align-items:center;gap:120px}
+.close .qr{flex:none;width:440px;height:440px}
+.close .qr img{width:100%;height:100%;image-rendering:pixelated;display:block}
+.close .url{font-size:56px;font-weight:800;letter-spacing:-.03em;margin-top:40px}
+
+/* 글자 넘침 검사용(화면에는 안 보임) */
+.slide.measure{display:flex !important;visibility:hidden}
+.slide.measure *{animation:none !important;transition:none !important}
+
+#blank{position:fixed;inset:0;background:#000;display:none;z-index:50}
+#jump{position:fixed;right:24px;bottom:24px;background:#111;color:#fff;font:700 22px var(--sans);padding:10px 18px;display:none;z-index:60}
+#help{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:#111;color:#fff;font:500 22px/1.8 var(--sans);padding:36px 48px;display:none;z-index:70}
+#help b{display:inline-block;min-width:160px}
+</style><!--md-design-->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&amp;display=swap">
+<style id="md-design">
+/*[고딕] Pretendard*/
+:root{--sans:"Pretendard Variable",Pretendard,"Malgun Gothic",sans-serif}
+/*[명조] Gowun Batang*/
+:root{--serif:"Gowun Batang","Noto Serif KR",serif}
+/*[질문] 고딕 · 크기 96 · 굵게 · 줄간격 1.36*/
+.q{font-family:var(--sans);font-size:96px;font-weight:700;line-height:1.36}
+/*[질문 중간] 크기 84*/
+.q.m{font-size:84px}
+/*[질문 작은] 크기 70*/
+.q.s{font-size:70px}
+/*[문장] 명조 · 크기 60 · 굵게 · 줄간격 1.35*/
+.t{font-family:var(--serif);font-size:60px;font-weight:700;line-height:1.35}
+/*[설명] 고딕 · 크기 34 · 줄간격 1.6*/
+.p{font-family:var(--sans);font-size:34px;line-height:1.6}
+/*[머리말] 고딕 · 크기 26 · 굵게*/
+.label{font-family:var(--sans);font-size:26px;font-weight:700}
+/*[표지 제목] 고딕 · 크기 112 · 아주굵게*/
+.cover h1{font-family:var(--sans);font-size:112px;font-weight:800}
+/*[표지 부제] 명조 · 크기 35*/
+.cover .subt{font-family:var(--serif);font-size:35px}
+/*[이름] 크기 38 · 굵게*/
+.cover .by b{font-size:38px;font-weight:700}
+/*[카드 번호] 크기 24 · 아주굵게*/
+.plane .n{font-size:24px;font-weight:800}
+/*[카드 제목] 고딕 · 크기 64 · 굵게*/
+.plane .h{font-family:var(--sans);font-size:64px;font-weight:700}
+/*[카드 설명] 명조 · 크기 32*/
+.plane .d{font-family:var(--serif);font-size:32px}
+/*[띠] 명조 · 크기 46 · 굵게*/
+.bar{font-family:var(--serif);font-size:46px;font-weight:700}
+/*[수업 주제] 고딕 · 크기 68 · 굵게 · 줄간격 1.5*/
+.std{font-family:var(--sans);font-size:68px;font-weight:700;line-height:1.5}
+/*[지도] 고딕 · 크기 34 · 굵게*/
+.map .node{font-family:var(--sans);font-size:34px;font-weight:700}
+/*[줄] 고딕 · 크기 64 · 굵게*/
+.lane{font-family:var(--sans);font-size:64px;font-weight:700}
+/*[목록] 크기 32*/
+.bullets div{font-size:32px}
+/*[ABC] 명조 · 크기 60 · 굵게*/
+.ab div{font-family:var(--serif);font-size:60px;font-weight:700}
+/*[질문 목록] 명조 · 크기 66 · 굵게*/
+.fv .x{font-family:var(--serif);font-size:66px;font-weight:700}
+/*[학생 말] 크기 34*/
+.msg-u{font-size:34px}
+/*[AI 답] 크기 33*/
+.msg-a .tx{font-size:33px}
+/*[메모] 크기 40 · 아주굵게*/
+.sticky{font-size:40px;font-weight:800}
+/*[주소] 크기 56 · 아주굵게*/
+.close .url{font-size:56px;font-weight:800}
+/*[표] 고딕 · 크기 50 · 굵게*/
+.tbl .cell{font-family:var(--sans);font-size:50px;font-weight:700}
+/*[표 머리] 크기 44 · 아주굵게*/
+.tr .hd{font-size:44px;font-weight:800}
+/*[칩] 크기 30*/
+.chip{font-size:30px}
+/*[성취기준] 크기 30 · 굵게*/
+.code{font-size:30px;font-weight:700}
+/*[경고] 크기 44 · 아주굵게*/
+.modal .msg{font-size:44px;font-weight:800}
+</style>
+<!--/md-design-->
+</head>
+<body>
+<div id="viewport"><div id="stage">
+
+<!-- 1 -->
+<section class="slide cover" data-title="표지">
+  <div class="ctext">
+    <div class="rule"></div>
+    <h1 data-fx="떠오르기"><!--t:01-1|항목|-->도덕 수업,<br>AI를 어떻게 쓸까<!--/t--></h1>
+    <p class="subt" data-fx="나타나기" data-delay="0.5"><!--t:01-2|부제|-->생성형 AI와 함께 지구촌 문제 해결하기<!--/t--></p>
+    <p class="by" data-fx="나타나기" data-delay="0.8"><!--t:01-3|이름|-->2026336014<b>양성룡</b><!--/t--></p>
+  </div>
+  <div class="tiles" data-fx="차례로" data-delay="0.2">
+    <div class="w2" style="background-image:url(art/bangladesh.webp)"></div><div style="background:#b06d12"></div>
+    <div style="background:#1f7f7c"></div><div style="background-image:url(art/ghana.webp)"></div><div style="background-image:url(art/tuvalu.webp)"></div>
+    <div class="w2" style="background-image:url(art/gaza.webp)"></div><div style="background:#3e6399"></div>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="slide dark" data-title="학교에 가지 않는 학생">
+  <div class="qwrap">
+    <div>
+      <p class="q s ct" data-at="1:past" data-fx="떠오르기"><!--t:02-1|질문|-->새 학년이 시작됐는데<br>학교에 가지 않는<br>학생이 있습니다.<!--/t--></p>
+      <p class="q" data-step="1" data-fx="떠오르기" style="margin-top:40px"><!--t:02-2|질문|-->왜 그럴까요?<!--/t--></p>
+    </div>
+    <div class="faces" data-fx="차례로" data-faces="tuvalu,ghana,tone:#1f7f7c,sudan,tone:#b06d12,empty,bangladesh,haiti,rohingya,tone:#3e6399,congo,gaza"></div>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="slide dark" data-title="무엇을 물어볼까">
+  <div class="center">
+    <p class="q m ct" data-at="1:past"><!--t:03-1|질문|-->이 학생에게<br>무엇을 물어봐야 할까요?<!--/t--></p>
+    <div class="planes" data-step="1" data-fx="차례로" style="margin-top:70px;max-width:1300px">
+      <div class="plane" style="background:#fff;color:#111"><p class="h"><!--t:03-2|제목|-->“왜 안 갔니?”<!--/t--></p></div>
+      <div class="plane" style="background:#fff;color:#111"><p class="h"><!--t:03-3|제목|-->“왜 못 갔니?”<!--/t--></p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="slide dark" data-title="도덕 수업은 무엇을">
+  <div class="center" style="max-width:1000px">
+    <p class="q"><!--t:04-1|질문|-->이러한 상황을<br>도덕 수업에<br>어떻게 적용할까요?<!--/t--></p>
+  </div>
+  <div class="strip" data-fx="차례로"><div style="background-image:url(art/rohingya.webp)"></div><div style="background-image:url(art/ghana.webp)"></div><div style="background-image:url(art/tuvalu.webp)"></div></div>
+</section>
+
+<!-- 5 -->
+<section class="slide" data-title="네 가지 활동">
+  <p class="label"><!--t:05-1|머리말|-->도덕 수업의 4단계<!--/t--></p>
+  <div class="planes" data-step="0" data-fx="차례로" style="flex:1;max-height:600px">
+    <div class="plane"><p class="n"><!--t:05-2|번호|-->01<!--/t--></p><p class="h"><!--t:05-3|제목|-->인식<!--/t--></p><p class="d"><!--t:05-4|설명|-->이 상황에서 뭐가 문제지?<!--/t--></p><p class="d e"><!--t:05-5|설명|-->상황 속 도덕적 문제를 알아차린다<!--/t--></p></div>
+    <div class="plane"><p class="n"><!--t:05-6|번호|-->02<!--/t--></p><p class="h"><!--t:05-7|제목|-->공감<!--/t--></p><p class="d"><!--t:05-8|설명|-->이 사람들이 겪는 어려움이 뭘까?<!--/t--></p><p class="d e"><!--t:05-9|설명|-->당사자의 어려움과 바람을 살핀다<!--/t--></p></div>
+    <div class="plane"><p class="n"><!--t:05-10|번호|-->03<!--/t--></p><p class="h"><!--t:05-11|제목|-->선택<!--/t--></p><p class="d"><!--t:05-12|설명|-->그럼 나는 어떻게 할까?<!--/t--></p><p class="d e"><!--t:05-13|설명|-->충돌하는 가치 사이에서 중요한 것을 고른다<!--/t--></p></div>
+    <div class="plane"><p class="n"><!--t:05-14|번호|-->04<!--/t--></p><p class="h"><!--t:05-15|제목|-->제안<!--/t--></p><p class="d"><!--t:05-16|설명|-->문제를 해결하려면 어떻게 할 수 있을까?<!--/t--></p><p class="d e"><!--t:05-17|설명|-->누가 무엇을 할 수 있는지 제안한다<!--/t--></p></div>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="slide" data-title="기존 수업은">
+  <p class="q m"><!--t:06-1|질문|-->기존의 도덕 수업은<br>어떻게 했을까요?<!--/t--></p>
+  <div class="planes" data-step="1" style="margin-top:90px">
+    <div class="plane"><p class="n"><!--t:06-2|번호|-->01<!--/t--></p><p class="h" style="font-size:52px"><!--t:06-3|제목|-->문제 제기<!--/t--></p><p class="d"><!--t:06-4|설명|-->교과서나 시사 자료로 문제 상황 제시<!--/t--></p></div>
+    <div class="plane"><p class="n"><!--t:06-5|번호|-->02<!--/t--></p><p class="h" style="font-size:52px"><!--t:06-6|제목|-->사례 조사<!--/t--></p><p class="d"><!--t:06-7|설명|-->관련 실태와 통계 자료 탐색<!--/t--></p></div>
+    <div class="plane"><p class="n"><!--t:06-8|번호|-->03<!--/t--></p><p class="h" style="font-size:52px"><!--t:06-9|제목|-->토의·토론<!--/t--></p><p class="d"><!--t:06-10|설명|-->가치 갈등 분석과 입장 나누기<!--/t--></p></div>
+    <div class="plane"><p class="n"><!--t:06-11|번호|-->04<!--/t--></p><p class="h" style="font-size:52px"><!--t:06-12|제목|-->글쓰기·피드백<!--/t--></p><p class="d"><!--t:06-13|설명|-->자신의 생각 정리와 상호 피드백<!--/t--></p></div>
+  </div>
+</section>
+
+<!-- 7 -->
+<section class="slide" data-title="오늘의 수업 주제">
+  <p class="label big" style="font-size:56px"><!--t:07-1|머리말|-->오늘의 수업 주제<!--/t--></p>
+  <div class="row" style="flex:1;align-items:center;gap:90px">
+    <div style="flex:1">
+      <div class="code"><!--t:07-2|성취기준|-->9도03-03<!--/t--></div>
+      <p class="std" data-at="1:on"><!--t:07-3|수업 주제|--><span class="rest">인류의 고통에 </span>공감<span class="rest">하며 지구적 차원의 다양한 도덕 문제들을 </span>탐구<span class="rest">하고, 해결 방안을 </span>모색<span class="rest">하여 </span>실천<span class="rest">하는 자세를 갖는다.</span><!--/t--></p>
+    </div>
+    <div class="mosaic" data-fx="차례로"><div style="background-image:url(art/somalia.webp)"></div><div style="background:#b06d12"></div><div style="background:#1f7f7c"></div><div style="background-image:url(art/congo.webp)"></div></div>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="slide" data-title="성취기준 핵심요소">
+  <p class="label"><!--t:08-1|머리말|-->성취기준 핵심요소<!--/t--></p>
+  <div class="planes" data-step="0" style="flex:1;max-height:640px">
+    <div class="plane"><p class="n"><!--t:08-2|번호|-->01<!--/t--></p><p class="h"><!--t:08-3|제목|-->공감적 태도<!--/t--></p><p class="d"><!--t:08-4|설명|-->타인의 입장에서 어려움을 살핀다<!--/t--></p></div>
+    <div class="plane"><p class="n"><!--t:08-5|번호|-->02<!--/t--></p><p class="h"><!--t:08-6|제목|-->탐구와 분석<!--/t--></p><p class="d"><!--t:08-7|설명|-->원인과 실태를 조사,분석하여 권리와 책임을 묻는다<!--/t--></p></div>
+    <div class="plane"><p class="n"><!--t:08-8|번호|-->03<!--/t--></p><p class="h"><!--t:08-9|제목|-->실천적 의지<!--/t--></p><p class="d"><!--t:08-10|설명|-->내가 할 일과 제도가 할 일을 찾는다<!--/t--></p></div>
+  </div>
+</section>
+
+<!-- 9 -->
+<section class="slide" data-title="기존 도덕수업이라면">
+  <p class="label"><!--t:09-1|머리말|-->기존 도덕수업이라면?<!--/t--></p>
+  <div class="planes" data-step="0" data-fx="차례로" style="flex:1;max-height:720px">
+    <div class="plane"><p class="n"><!--t:09-2|번호|-->활동 A<!--/t--></p><p class="h"><!--t:09-3|제목|-->내가 소중히 여기는 가치<!--/t--></p><p class="d"><!--t:09-4|설명|-->문제 해결에 어떤 가치가 중요한가<!--/t--></p><ol class="steps"><li><!--t:09-5|항목|-->사례를 접한다<!--/t--></li><li><!--t:09-6|항목|-->내가 생각한 가치를 고른다<!--/t--></li><li><!--t:09-7|항목|-->고른 이유를 말한다<!--/t--></li><li><!--t:09-8|항목|-->다른 가치와 견주어 판단한다<!--/t--></li></ol></div>
+    <div class="plane"><p class="n"><!--t:09-9|번호|-->활동 B<!--/t--></p><p class="h"><!--t:09-10|제목|-->지구촌 문제 해결하기<!--/t--></p><p class="d"><!--t:09-11|설명|-->문제와 원인, 해결책은 무엇인가<!--/t--></p><ol class="steps"><li><!--t:09-12|항목|-->핵심 질문을 세운다<!--/t--></li><li><!--t:09-13|항목|-->원인을 두 갈래로 나눈다<!--/t--></li><li><!--t:09-14|항목|-->개인적·구조적 원인을 탐구한다<!--/t--></li><li><!--t:09-15|항목|-->해결 방안을 제안한다<!--/t--></li></ol></div>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="slide" data-title="가치 찾아보기">
+  <p class="label"><!--t:10-1|머리말|-->활동 A · 내가 소중히 여기는 가치<!--/t--></p>
+  <div class="planes" data-step="0">
+    <div class="plane"><p class="n"><!--t:10-2|번호|-->01<!--/t--></p><p class="h" style="font-size:55px"><!--t:10-3|제목|-->사례를 접한다<!--/t--></p><p class="d"><!--t:10-4|설명|-->교사가 제시하거나 학생이 찾는다<!--/t--></p></div>
+    <div class="plane"><p class="n"><!--t:10-5|번호|-->02<!--/t--></p><p class="h" style="font-size:55px"><!--t:10-6|제목|-->내가 생각한 가치를 고른다<!--/t--></p><div class="chips"><!--t:10-7|항목|--><span>인권</span><span>공정성</span><span>연대</span><!--/t--></div></div>
+    <div class="plane"><p class="n"><!--t:10-8|번호|-->03<!--/t--></p><p class="h" style="font-size:52px"><!--t:10-9|제목|-->이유를 말한다<!--/t--></p><p class="d"><!--t:10-10|설명|-->왜 이 가치가 중요할까요?<!--/t--></p></div>
+  </div>
+  <div class="center">
+    <p class="q m" data-step="1" data-fx="떠오르기"><!--t:10-11|질문|-->지구촌 문제 해결에 있어서,<br>내가 생각한 중요한 가치는?<!--/t--></p>
+  </div>
+</section>
+
+<!-- 11 -->
+<section class="slide" data-title="생각은 어떻게 이어질까" style="padding:0">
+  <div class="mapwrap">
+    <div class="mapart"></div>
+    <div class="mapbody">
+      <p class="label"><!--t:11-1|머리말|-->활동 B · 지구촌 문제 해결하기<!--/t--></p>
+      <div class="map">
+        <svg width="1180" height="640" viewBox="0 0 1180 640" aria-hidden="true">
+          <path data-step="1" data-fx="나타나기" d="M330 320 C365 320 365 150 400 150"/>
+          <path data-step="1" data-fx="나타나기" d="M330 320 C365 320 365 470 400 470"/>
+          <path data-step="2" data-fx="나타나기" d="M770 150 L810 150"/>
+          <path data-step="2" data-fx="나타나기" d="M770 470 L810 470"/>
+        </svg>
+        <div class="node main" style="left:0;top:220px;width:330px"><!--t:11-2|지도|--><span class="tag">질문</span>이 아이가 학교에 가지 못하는 이유는?<!--/t--></div>
+        <div class="node" data-step="1" data-fx="펼치기" style="left:400px;top:62px;width:370px"><!--t:11-3|지도|--><span class="tag">원인 1</span>학교에 가기 싫어서<br>(왜 안 갈까?)<!--/t--></div>
+        <div class="node" data-step="1" data-fx="펼치기" data-delay="0.2" style="left:400px;top:382px;width:370px"><!--t:11-4|지도|--><span class="tag">원인 2</span>학교에 가지 못해서<br>(왜 못 갈까?)<!--/t--></div>
+        <div class="node end" data-step="2" data-fx="펼치기" style="left:810px;top:62px;width:350px"><!--t:11-5|지도|--><span class="tag">탐구</span>친구가 괴롭혀서<br>(개인적 문제)<!--/t--></div>
+        <div class="node end" data-step="2" data-fx="펼치기" data-delay="0.2" style="left:810px;top:382px;width:350px"><!--t:11-6|지도|--><span class="tag">탐구</span>주변에 학교가 없어서<br>(구조적 문제)<!--/t--></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 12 -->
+<section class="slide dark" data-title="AI는 어떻게">
+  <div class="center">
+    <p class="q" data-fx="떠오르기"><!--t:12-1|질문|-->AI를 이 수업에서<br>어떻게 활용할 수 있을까요?<!--/t--></p>
+  </div>
+</section>
+
+<!-- 13 -->
+<section class="slide" data-title="응답이 돌아오면">
+  <p class="label"><!--t:13-1|머리말|-->기존 도덕 수업에 AI를 도입한다면?<!--/t--></p>
+  <div class="fork">
+    <div class="lane root"><!--t:13-2|줄|-->생각을 적는다<!--/t--></div>
+    <svg width="1580" height="90" viewBox="0 0 1580 90" aria-hidden="true">
+      <path data-fx="나타나기" data-delay="0.3" d="M790 0 C790 50 360 40 360 90"/>
+      <path data-step="1" data-fx="나타나기" d="M790 0 C790 50 1220 40 1220 90"/>
+    </svg>
+    <div class="forks">
+      <div class="br ct" data-fx="차례로" data-delay="0.4" data-at="1:past">
+        <p class="bl"><!--t:13-3|항목|-->기존 도덕 수업<!--/t--></p>
+        <div class="lane" style="font-size:52px"><!--t:13-4|줄|-->제출한다<!--/t--></div>
+        <div class="dn">↓</div>
+        <div class="lane" style="font-size:52px"><!--t:13-5|줄|-->끝.<!--/t--></div>
+      </div>
+      <div class="br ai2" data-step="1" data-fx="차례로">
+        <p class="bl"><!--t:13-6|항목|-->AI와 함께하는 도덕 수업<!--/t--></p>
+        <div class="lane" style="font-size:52px"><!--t:13-7|줄|-->AI가 내 생각을 되묻는다<!--/t--></div>
+        <div class="dn">↓</div>
+        <div class="lane" style="font-size:52px"><!--t:13-8|줄|-->다시 생각한다<!--/t--></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 14 AI 시연 -->
+<section class="slide ai" data-title="AI에게 해결책을 물어본다면">
+  <p class="label"><!--t:14-1|머리말|-->AI를 어떻게 활용하는게 좋을까요?<!--/t--></p>
+  <div class="chatwin" style="margin-top:0">
+    <div class="chatside"><span class="nw">＋ 새 대화</span><span class="h">최근</span><span class="it">지구촌 문제 해결</span><span class="it">도덕 수업 준비</span></div>
+    <div class="chatmain">
+      <div class="chattop">AI 도우미 <small>▾</small></div>
+      <div class="chatlog">
+        <div class="msg-a" data-fx="나타나기" data-delay="0.3"><span class="av"></span><div class="tx"><!--t:14-2|항목|-->AI에게 해결책을 직접 물어볼까요?<!--/t--></div></div>
+        <div class="msg-u" data-step="1" data-fx="타자"><!--t:14-3|학생 말|-->전 세계에서 겪고 있는 지구촌 문제의 어려움을 어떻게 해결할 수 있을지 알려줘<!--/t--></div>
+        <div class="chain" data-step="1">
+          <div class="msg-a"><span class="av"></span>
+            <div class="tx"><p data-fx="타자"><!--t:14-4|항목|-->빈곤·불평등, 기후변화, 질병, 갈등, 디지털 격차 같은 복합적인 위기는 한 나라나 기술 하나만으로 풀 수 없습니다. 네 가지 층위가 맞물려 작동해야 합니다.<!--/t--></p>
+              <div class="layers"><div><!--t:14-5|항목|-->① 국제적 협력<!--/t--></div><div><!--t:14-6|항목|-->② 제도 및 정책 혁신<!--/t--></div><div><!--t:14-7|항목|-->③ 기술·인프라의 책임 있는 배분<!--/t--></div><div><!--t:14-8|항목|-->④ 시민사회의 실천<!--/t--></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="inputbar"><!--t:14-9|입력창|-->메시지를 입력하세요<span class="send">↑</span><!--/t--></div>
+    </div>
+    <div class="mback" data-step="2"></div>
+    <div class="modal" data-step="2" data-fx="나타나기">
+      <p class="msg"><!--t:14-10|경고|-->이 답을 옮겨 적는 걸로<br>활동이 끝날까요?<!--/t--></p>
+      <div class="mbtns"><div class="mb"><!--t:14-11|버튼|-->그대로 옮겨 적기<!--/t--></div><div class="mb pri"><!--t:14-12|버튼|-->다시 생각해 보기<!--/t--></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 15 -->
+<section class="slide dark" data-title="누가 판단하나">
+  <div class="center">
+    <p class="q m" data-fx="떠오르기"><!--t:15-1|질문|-->이 판단과 생각은<br>누가 했다고 볼 수 있을까요?<!--/t--></p>
+    <div class="who2" data-fx="나타나기" data-step="0" data-delay="1"><!--t:15-2|항목|--><span>학생?</span><i></i><span>AI?</span><!--/t--></div>
+  </div>
+</section>
+
+<!-- 16 -->
+<section class="slide" data-title="학생에게 남을 판단">
+  <p class="label big" style="text-align:center;font-size:56px"><!--t:16-1|머리말|-->그럼 학생의 판단과 생각에 AI는 어떻게 도와줘야 할까요?<!--/t--></p>
+  <div class="tbl">
+    <div class="tr th"><span class="no"></span><p class="hd"><!--t:16-2|표 머리|-->학생<!--/t--></p><span class="ar"></span><p class="hd"><!--t:16-3|표 머리|-->AI<!--/t--></p></div>
+    <div class="tr"><span class="no"></span><div class="cell s"><p data-step="1" data-fx="나타나기"><!--t:16-4|항목|-->문제를 정한다<!--/t--></p></div><span class="ar"></span><div class="cell a"><p data-step="1" data-fx="나타나기" data-delay="0.5"><!--t:16-5|항목|-->문제를 찾고 알려준다<!--/t--></p></div></div>
+    <div class="tr"><span class="no"></span><div class="cell s"><p data-step="2" data-fx="나타나기"><!--t:16-6|항목|-->근거를 확인한다<!--/t--></p></div><span class="ar"></span><div class="cell a"><p data-step="2" data-fx="나타나기" data-delay="0.5"><!--t:16-7|항목|-->그게 맞는지 되묻는다<!--/t--></p></div></div>
+    <div class="tr"><span class="no"></span><div class="cell s"><p data-step="3" data-fx="나타나기"><!--t:16-8|항목|-->이유를 설명한다<!--/t--></p></div><span class="ar"></span><div class="cell a"><p data-step="3" data-fx="나타나기" data-delay="0.5"><!--t:16-9|항목|-->다른 관점들을 제시한다<!--/t--></p></div></div>
+  </div>
+</section>
+
+<!-- 17 AI 시연 -->
+<section class="slide ai" data-title="AI를 대화 상대로 만들자">
+  <p class="label"><!--t:17-1|머리말|-->AI가 학생의 생각에 의견을 보태준다면?<!--/t--></p>
+  <div class="chatwin" style="margin-top:0">
+    <div class="chatside"><span class="nw">＋ 새 대화</span><span class="h">최근</span><span class="it">학교 가는 길 만들기</span><span class="it">지구촌 문제 해결</span></div>
+    <div class="chatmain">
+      <div class="chattop">AI 도우미 <small>▾</small></div>
+      <div class="chatlog">
+        <div class="msg-wrap-u" data-step="1"><span class="ann"><!--t:17-2|주석|-->① 학생이 먼저 제안<!--/t--></span><div class="msg-u" data-fx="타자"><!--t:17-3|학생 말|-->학교를 갈 수 있는 교통 시설을 마련해주면 돼.<!--/t--></div></div>
+        <div class="chain" data-step="1"><span class="ann" style="margin-left:82px"><!--t:17-4|주석|-->② AI는 검토할 조건을 되묻기<!--/t--></span>
+          <div class="msg-a"><span class="av"></span><div class="tx" data-fx="타자"><!--t:17-5|항목|-->좋은 출발이에요. 그런데 시설은 누가 지어주나요? 시설이 고장나면 누가 관리할까요?<!--/t--></div></div></div>
+        <div class="msg-wrap-u chain" data-step="1"><span class="ann"><!--t:17-6|주석|-->③ 학생이 놓친 조건을 찾아 질문 고치기<!--/t--></span><div class="msg-u" data-fx="타자"><!--t:17-7|학생 말|-->관리할 사람과 비용은 생각 못 했네. 그 마을에 관리 인력이 있는지부터 찾아볼게.<!--/t--></div></div>
+      </div>
+      <div class="inputbar after" data-fx="나타나기" data-step="1" style="color:#CFCBFF;border-color:#5B54D6"><!--t:17-8|입력창|-->④ 다음에 확인할 자료와 상대를 정하는 일은 학생에게 남습니다<span class="send">↑</span><!--/t--></div>
+    </div>
+  </div>
+</section>
+
+<!-- 18 -->
+<section class="slide" data-title="AI의 세 역할">
+  <p class="label"><!--t:18-1|머리말|-->AI가 맡을 수 있는 세 역할<!--/t--></p>
+  <div class="planes" data-step="0" style="flex:1;max-height:640px">
+    <div class="plane"><p class="n"><!--t:18-2|번호|-->역할 1<!--/t--></p><p class="h"><!--t:18-3|제목|-->대화 상대<!--/t--></p><p class="d"><!--t:18-4|설명|-->상황 속 인물이 되어 학생과 대화한다<!--/t--></p></div>
+    <div class="plane"><p class="n"><!--t:18-5|번호|-->역할 2<!--/t--></p><p class="h"><!--t:18-6|제목|-->조력자<!--/t--></p><p class="d"><!--t:18-7|설명|-->학생의 질문을 구체화하고 근거를 찾게 돕는다<!--/t--></p></div>
+    <div class="plane"><p class="n"><!--t:18-8|번호|-->역할 3<!--/t--></p><p class="h"><!--t:18-9|제목|-->피드백<!--/t--></p><p class="d"><!--t:18-10|설명|-->학생의 글에 질문과 수정 방향을 준다<!--/t--></p></div>
+  </div>
+</section>
+
+<!-- 19 -->
+<section class="slide" data-title="다시 생각할 기회" style="background:var(--face)">
+  <div class="center">
+    <p class="label"><!--t:19-1|머리말|-->즉, AI와 함께하는 도덕수업은?<!--/t--></p>
+    <p class="q m mute" data-fx="떠오르기"><!--t:19-2|질문|-->나의 <span class="k">생각</span>을,<br><span class="k">대화</span>를 통해 <span class="k">정리</span>하여<br><span class="k">판단</span>할 수 있게 한다.<!--/t--></p>
+  </div>
+</section>
+
+<!-- 20 -->
+<section class="slide dark" data-title="그 학생을 다시">
+  <div class="qwrap">
+    <div>
+      <p class="q s ct" data-at="1:past" data-fx="떠오르기"><!--t:20-1|질문|-->다시 묻습니다.<br>새 학년이 시작됐는데<br>학교에 가지 않는<br>학생이 있습니다.<!--/t--></p>
+      <p class="q" data-step="1" data-fx="떠오르기" style="margin-top:40px"><!--t:20-2|질문|-->왜 그럴까요?<!--/t--></p>
+    </div>
+    <div class="faces" data-fx="차례로" data-faces="tuvalu,ghana,tone:#1f7f7c,sudan,tone:#b06d12,empty,bangladesh,haiti,rohingya,tone:#3e6399,congo,gaza"></div>
+  </div>
+</section>
+
+<!-- 21 -->
+<section class="slide" data-title="역할 1: 인물의 입장에서" style="padding:80px 150px 70px">
+  <p class="label big" style="font-size:56px"><!--t:21-1|머리말|-->첫 번째 역할: 인물의 입장을 대신 체험해보기<!--/t--></p>
+  <div class="shot" data-fx="나타나기" data-delay="0.2" style="width:1420px;margin:6px auto 0"><img src="capture/01-home.png" alt="다른 곳의 하루 첫 화면"></div>
+</section>
+
+<!-- 22 -->
+<section class="slide key" data-title="왜 못 갔지">
+  <div class="split">
+    <div class="txt">
+      <p class="q s ct" data-at="1:strike"><!--t:22-1|질문|-->“왜 안 갔지?”<!--/t--></p>
+      <p class="q s k" data-step="1" data-fx="떠오르기"><!--t:22-2|질문|-->“왜 못 갔지?”<!--/t--></p>
+      <div class="bullets" data-step="1" data-fx="차례로" data-delay="0.5">
+        <div><!--t:22-3|항목|--><b>마리암, 열세 살.</b> 의사가 되고 싶다.<!--/t--></div>
+        <div><!--t:22-4|항목|-->오빠는 학교에 간다. <b>마리암은 중학교에 갈 수 없다.</b><!--/t--></div>
+      </div>
+      <p class="t" data-step="2" data-fx="나타나기" style="margin-top:56px;font-size:56px;line-height:1.4"><!--t:22-5|문장|-->왜 마리암은<br><span class="k">중학교에 갈 권리</span>가 허용되지 않는가?<!--/t--></p>
+    </div>
+    <div class="shot" data-step="1" data-fx="나타나기" data-delay="0.3" style="width:520px"><img src="capture/02-portrait.png" alt="앱의 마리암 인물 그림"></div>
+  </div>
+</section>
+
+<!-- 23 -->
+<section class="slide key" data-title="아침, 오빠의 새 가방">
+  <div class="split">
+    <div class="shot" style="width:820px"><img src="capture/03-morning-panel.png" alt="앱의 아침 장면 대화 화면"></div>
+    <div class="txt">
+      <p class="label big" style="font-size:56px"><!--t:23-1|머리말|-->학교를 가고 싶은 마리암<!--/t--></p>
+      <div class="say"><p class="who"><!--t:23-2|항목|-->마리암 (나)<!--/t--></p><p class="t" style="font-size:44px;line-height:1.4"><!--t:23-3|문장|-->“엄마, 저도 학교에 가면 안 돼요?”<!--/t--></p></div>
+      <div data-step="1">
+      <p class="chiptitle" data-fx="나타나기"><!--t:23-4|항목|-->마리암이 할 수 있는 선택은?<!--/t--></p>
+      <div class="chipbox" data-fx="차례로" data-delay="0.2">
+        <div class="chip"><!--t:23-5|칩|-->오빠의 교과서로 혼자 공부한다<!--/t--></div>
+        <div class="chip"><!--t:23-6|칩|-->엄마에게 바느질을 배운다<!--/t--></div>
+      </div>
+      </div>
+      <div class="plane ink" data-step="2" data-fx="펼치기" style="margin-top:44px;padding:36px 40px"><p class="h" style="font-size:42px;line-height:1.45"><!--t:23-7|제목|-->마리암이 처한 상황을.<br>대신 체험, 공감해보기.<!--/t--></p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 24 -->
+<section class="slide key" data-title="저녁, 사촌 언니의 전화">
+  <div class="split">
+    <div class="shot stack" style="width:720px">
+      <img src="capture/04-evening-panel.png" alt="앱의 저녁 장면, 결정 칩이 나온 화면">
+    </div>
+    <div class="txt">
+      <p class="label big" style="font-size:56px"><!--t:24-1|머리말|-->돈이 있다면 무엇을 할까?<!--/t--></p>
+      <div class="chipbox" data-step="1" data-fx="차례로" style="margin-top:30px">
+        <div class="chip" style="font-size:36px"><!--t:24-2|칩|--><b>A</b>태블릿을 사서 공부를 한다.<!--/t--></div>
+        <div class="chip" style="font-size:36px"><!--t:24-3|칩|--><b>B</b>캠페인단체 후원을 통해 제도 개선을 요구한다<!--/t--></div>
+      </div>
+      <div class="res" data-step="2" data-fx="차례로">
+        <div><span class="tg"><!--t:24-4|항목|-->A를 고르면<!--/t--></span><p class="rt"><!--t:24-5|항목|-->작은 화면으로 넓어진 세상<!--/t--></p><p class="rd"><!--t:24-6|항목|-->온라인 영어 수업을 듣고 외국 친구도 사귄다. 하지만 인터넷 요금이 비싸고, 졸업장을 받을 수 있을지는 알 수 없다.<!--/t--></p></div>
+        <div class="b"><span class="tg"><!--t:24-7|항목|-->B를 고르면<!--/t--></span><p class="rt"><!--t:24-8|항목|-->모두의 권리를 향한 외침<!--/t--></p><p class="rd"><!--t:24-9|항목|-->교육권을 요구하는 팻말 사진에 가슴이 벅차다. 하지만 다음 날 아침에도 마리암은 학교에 가지 못한다.<!--/t--></p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 25 -->
+<section class="slide key" data-title="질문·조사">
+  <div class="split">
+    <div class="txt">
+      <p class="label big" style="font-size:56px"><!--t:25-1|머리말|-->두 번째 역할: 조력자<!--/t--></p>
+      <p class="t ct" data-at="1:past" style="font-size:50px"><!--t:25-2|문장|-->“왜 학교에 못 갈까?”<!--/t--></p>
+      <p class="t" data-fx="펼치기" data-step="0" style="margin-top:24px;font-family:var(--sans);font-size:42px;line-height:1.5"><!--t:25-3|문장|-->→ 여학생 교육을 막는 정책은?<br>→ 몰래 하는 공부의 위험은?<!--/t--></p>
+      <div class="bullets" data-step="1">
+        <div><!--t:25-4|항목|--><b>묻는다</b> · AI 조사 도우미에게<!--/t--></div>
+        <div><!--t:25-5|항목|--><b>확인한다</b> · 원문 자료를 열어<!--/t--></div>
+        <div><!--t:25-6|항목|--><b>적는다</b> · 내 말과 근거로<!--/t--></div>
+      </div>
+      <div class="plane ink" data-fx="펼치기" data-delay="0.7" style="margin-top:40px;padding:28px 36px" data-step="1"><p class="h" style="font-size:36px;line-height:1.45"><!--t:25-7|제목|-->나온 대답을 검토한다.<!--/t--></p></div>
+    </div>
+    <div class="shot mock" style="width:860px">
+      <div class="mq">내 질문: 여학생의 중등교육을 제한하는 정책은 무엇이고, 그동안 공부를 이어 갈 방법에는 어떤 위험이 있을까?</div>
+      <div class="ma">자료에 따르면 탈레반의 정책으로 여학생과 여성이 중학교 이상의 교육을 받지 못하도록 제도적으로 차단된 상태예요. 일반적인 상황을 보면 몰래 공부방을 열거나 온라인 학습을 찾아볼 수 있지만, 당국의 감시나 제재를 받을 위험이 있을 수 있어요. 또한 비공식적인 대체 학습은 정식 졸업장을 받기 어려워 의사 같은 꿈을 공식적으로 이루는 데 한계가 생길 수 있습니다. 국제사회는 교육권 회복을 요구하지만 현지 정책을 바꾸기란 쉽지 않은 문제입니다. 다만 자료 이후의 최신 상황은 변동이 있을 수 있어요.
+        <div class="src">직접 확인해 볼 자료 · <b>UNESCO · 아프가니스탄 교육권 검토</b></div>
+        <div class="btn">핵심을 메모에 담기</div></div>
+      <div class="sug"><span>대체 학습으로 공부한 걸 인정받는 길은 없을까?</span><span>국제사회는 여학생 교육권을 위해 뭘 하고 있어?</span></div>
+      <div class="in"><div>AI에게 직접 물어보기</div><b>묻기</b></div>
+    </div>
+  </div>
+</section>
+
+<!-- 26 -->
+<section class="slide key" data-title="역할 3: 피드백">
+  <div class="split">
+    <div class="txt">
+      <p class="label big" style="font-size:56px"><!--t:26-1|머리말|-->역할 3 · 학생의 생각을 검토하고 피드백하기<!--/t--></p>
+      <div class="bullets" style="margin-top:10px">
+        <div><!--t:26-2|항목|--><b>학생이 먼저 작성</b><br>기사 · 정책 제안서 · 편지<!--/t--></div>
+        <div data-step="1" data-fx="펼치기"><!--t:26-3|항목|--><b>인물이 되묻는다</b><br>생활 조건의 걱정<!--/t--></div>
+        <div data-step="1" data-fx="펼치기" data-delay="0.3"><!--t:26-4|항목|--><b>선생님이 묻는다</b><br>근거와 실행 가능성<!--/t--></div>
+      </div>
+    </div>
+    <div class="shot mock" style="width:800px;height:840px;border:0">
+      <div class="doc">
+        <div class="bar2"><div>정책 제안서<span>POLICY PROPOSAL</span></div><div>제안 번호 2026-1111-1523</div></div>
+        <div class="in2">
+          <h4>여학생 학습 기기 지원</h4>
+          <div class="sum"><p class="hh">핵심 요약</p>
+            <div><b>문제</b><span>마리암 같은 여학생은 정책 때문에 중학교에 갈 수 없다 (UNESCO 아프가니스탄 교육권 검토).</span></div>
+            <div><b>제안</b><span>교육 지원 기관에서 학습 기기를 보내 온라인 수업을 들을 수 있게 해 주세요.</span></div>
+            <div><b>보완</b><span>기기 값이 든다.</span></div></div>
+          <div class="sec"><h5><i>I</i>현황과 문제</h5><p>마리암 같은 여학생은 정책 때문에 중학교에 갈 수 없다.</p></div>
+          <div class="sec"><h5><i>II</i>정책 제안</h5><p>교육 지원 기관에서 학습 기기를 보내 온라인 수업을 들을 수 있게 해 주세요.</p></div>
+          <div class="sec"><h5><i>III</i>예상 쟁점과 보완 방안</h5><p>기기 값이 든다. 현지 학생들에게 어떤 수업이 필요한지 물어봐야 한다.</p></div>
+          <div class="sec"><h5><i>IV</i>근거 자료</h5><p>UNESCO의 2025년 자료는 탈레반의 정책으로 여학생과 여성의 중등·고등교육 접근이 차단되었다고 설명한다.</p></div>
+        </div>
+      </div>
+      <div class="fb" data-step="1" data-fx="나타나기">
+        <div class="me">제가 쓴 글이에요. 읽어 봐 주세요.</div>
+        <div><p class="who">마리암</p><p class="ot">제안서를 읽어 줘서 고마워. 집에서 기기로 수업을 들을 수 있다면 정말 기쁠 것 같지만, 우리 집에는 인터넷이나 전기가 잘 안 들어올 때가 많고 기기를 가지고 있는 것 자체가 들키면 위험할까 봐 조금 무섭기도 해.</p></div>
+        <div class="me">기기를 주는 것만 생각했는데, 계속 안전하게 쓸 수 있는 조건도 필요하겠네. 선생님은 어떻게 보셨어요?</div>
+        <div><p class="who">선생님</p><p class="ot">문제의 원인을 짚고 구체적인 대안을 제시하려는 시도가 아주 훌륭해요. 다만 조사 내용에서 다룬 '대체 학습의 위험과 졸업장 미인정 한계'를 고려해, 기기 지원 외에 안전을 지키고 학력을 인정받을 방법도 '예상되는 어려움과 보완'에 더 담아보면 어떨까요?</p></div>
+        <div class="sug2"><span>보완할 내용을 제안서에 어떻게 추가할까요?</span><span>마리암, 졸업장이 없으면 어떤 점이 힘들어?</span><span>제안서를 직접 다시 고쳐 볼게요.</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 27 -->
+<section class="slide home" data-title="수업 체험해 보기">
+  <div class="hbg"></div>
+  <div class="glass" data-fx="나타나기" data-delay="0.3">
+    <img src="anotherday-qr.png" alt="onischool.net/anotherday QR 코드">
+    <p class="qrl"><!--t:27-1|항목|-->QR 코드를 찍어 바로 체험하기<!--/t--></p>
+    <p class="url"><!--t:27-2|주소|-->onischool.net/anotherday<!--/t--></p>
+  </div>
+</section>
+
+</div></div>
+
+<div id="blank"></div>
+<div id="jump"></div>
+<div id="help">
+  <div><b>→ Space 클릭</b>다음</div><div><b>← Backspace</b>이전</div><div><b>Home / End</b>처음 / 끝</div>
+  <div><b>숫자 + Enter</b>해당 장으로</div><div><b>F</b>전체 화면</div><div><b>B</b>화면 가리기</div>
+</div>
+
+<script>
+(function(){
+  const stage=document.getElementById('stage'),vp=document.getElementById('viewport');
+  const slides=[...document.querySelectorAll('.slide')],N=slides.length;
+
+  // 원고 문구가 들어 있는 요소(글자 크기 자동 조정 대상)
+  slides.forEach(s=>{
+    const w=document.createTreeWalker(s,NodeFilter.SHOW_COMMENT),set=new Set();let c;
+    while((c=w.nextNode()))if(c.data.startsWith('t:'))set.add(c.parentElement);
+    s._units=[...set];
+  });
+
+  // 얼굴 격자 채우기
+  document.querySelectorAll('.faces').forEach(g=>{
+    g.innerHTML=g.dataset.faces.split(',').map(f=>f==='empty'?'<div class="empty">?</div>':f.startsWith('tone:')?`<div style="background:${f.slice(5)}"></div>`:`<div style="background-image:url(art/${f}-face.webp)"></div>`).join('');
+  });
+  // 효과 준비: 늦게 시작, 줄 나누기, 차례 번호
+  document.querySelectorAll('[data-delay]').forEach(e=>e.style.setProperty('--d',e.dataset.delay+'s'));
+  document.querySelectorAll('[data-fx="떠오르기"]').forEach(e=>{
+    e.innerHTML=e.innerHTML.split(/<br\s*\/?>/i).map((h,k)=>`<span class="ln"><span style="--i:${k}">${h}</span></span>`).join('');
+  });
+  document.querySelectorAll('[data-fx="차례로"]').forEach(e=>[...e.children].forEach((c,k)=>c.style.setProperty('--i',k)));
+
+  slides.forEach(s=>{
+    const nums=[...s.querySelectorAll('[data-step]')].map(e=>+e.dataset.step)
+      .concat([...s.querySelectorAll('[data-until]')].map(e=>+e.dataset.until))
+      .concat([...s.querySelectorAll('[data-at]')].map(e=>+e.dataset.at.split(':')[0]));
+    s._max=Math.max(0,...nums);
+  });
+  const tws=[...document.querySelectorAll('[data-fx="타자"]')];
+  tws.forEach(e=>{e._full=e.textContent.trim();const o=e.closest('[data-step]');e._a=o?+o.dataset.step:0;});
+
+  // 글자가 칸이나 화면을 넘치면 조금씩 줄인다
+  function overflows(b){return b.scrollHeight>b.clientHeight+2||b.scrollWidth>b.clientWidth+2;}
+  function fitAll(){
+    slides.forEach(s=>{
+      s.classList.add('measure');
+      s._units.forEach(u=>u.style.removeProperty('--fit'));
+      for(let k=0;k<12;k++){
+        const bad=new Set();
+        if(overflows(s))s._units.forEach(u=>bad.add(u));
+        s.querySelectorAll('.plane,.lane,.bar,.node,.cell,.chip,.msg-u,.chatlog,.modal').forEach(b=>{if(overflows(b))s._units.forEach(u=>{if(b.contains(u))bad.add(u);});});
+        s._units.forEach(u=>{if(u.scrollWidth>u.clientWidth+2)bad.add(u);});
+        if(!bad.size)break;
+        bad.forEach(u=>{u.style.fontSize=(parseFloat(getComputedStyle(u).fontSize)*.94).toFixed(1)+'px';});
+      }
+      s.classList.remove('measure');
+    });
+  }
+
+  function fit(){stage.style.transform=`scale(${Math.min(vp.clientWidth/1920,vp.clientHeight/1080)})`;}
+  addEventListener('resize',fit);
+
+  let i=0,step=0,tok=0,prevI=-1,prevStep=-1;
+  const fromHash=()=>{const m=location.hash.match(/(\d+)(?:\.(\d+))?/);if(m){i=Math.min(N-1,Math.max(0,+m[1]-1));step=Math.min(slides[i]._max,+(m[2]||0));}};
+
+  // AI 시연 화면의 타자 효과
+  const wait=ms=>new Promise(r=>setTimeout(r,ms));
+  async function typeText(el,my){
+    const full=el._full;el.textContent='';el.classList.add('caret');
+    await wait(300);
+    for(let k=0;k<full.length;k+=2){if(my!==tok)break;el.textContent=full.slice(0,k+2);await wait(30);}
+    el.textContent=full;el.classList.remove('caret');
+  }
+
+  function render(){
+    const my=++tok;
+    const s=slides[i],changed=prevI!==i,forwardOne=!changed&&step===prevStep+1;
+    if(changed&&prevI>=0){const o=slides[prevI];o.classList.add('leaving');clearTimeout(o._lt);o._lt=setTimeout(()=>o.classList.remove('leaving'),400);}
+    slides.forEach((x,k)=>x.classList.toggle('active',k===i));
+    s.querySelectorAll('[data-step],[data-until]').forEach(e=>{
+      const a=+(e.dataset.step||0),u=e.dataset.until?+e.dataset.until:Infinity;
+      e.classList.toggle('vis',step>=a&&step<u);
+    });
+    s.querySelectorAll('[data-at]').forEach(e=>{const[n,c]=e.dataset.at.split(':');e.classList.toggle(c,step>=+n);});
+    // 타자: 이번 클릭에 나온 것은 차례로 치고, 나머지는 바로 보인다
+    const fresh=[];
+    s.querySelectorAll('[data-fx="타자"]').forEach(e=>{
+      const box=e.closest('.chain');
+      e.classList.remove('caret');e.textContent=e._full;
+      if(forwardOne&&e._a===step&&step>0){fresh.push(e);box&&box.classList.remove('on');}
+      else box&&box.classList.toggle('on',step>=e._a);
+    });
+    // 대화가 다 끝난 뒤에 나오는 요소(.after)
+    const later=[...s.querySelectorAll('.after')];
+    later.forEach(e=>e.classList.toggle('on',!fresh.length));
+    (async()=>{for(const [k,e] of fresh.entries()){if(my!==tok)return;const box=e.closest('.chain');if(box&&k>0){await wait(1200);if(my!==tok)return;}box&&box.classList.add('on');await typeText(e,my);}
+      if(!fresh.length||my!==tok)return;await wait(700);if(my===tok)later.forEach(e=>e.classList.add('on'));})();
+    prevI=i;prevStep=step;
+    history.replaceState(null,'',location.pathname+location.search+'#'+(i+1)+(step?'.'+step:''));
+  }
+  function next(){if(step<slides[i]._max)step++;else if(i<N-1){i++;step=0;}render();}
+  function prev(){if(step>0)step--;else if(i>0){i--;step=slides[i]._max;}render();}
+  function go(n){i=Math.min(N-1,Math.max(0,n));step=0;render();}
+
+  let digits='';const jump=document.getElementById('jump');
+  addEventListener('keydown',e=>{
+    if(e.ctrlKey||e.metaKey||e.altKey)return;const k=e.key;
+    if(/^\d$/.test(k)){digits+=k;jump.textContent=digits+'장 (Enter)';jump.style.display='block';return;}
+    if(k==='Enter'&&digits){go(+digits-1);digits='';jump.style.display='none';e.preventDefault();return;}
+    if(k==='Escape'){digits='';jump.style.display='none';document.getElementById('help').style.display='none';return;}
+    if(['ArrowRight','ArrowDown','PageDown',' ','Enter'].includes(k)){e.preventDefault();next();}
+    else if(['ArrowLeft','ArrowUp','PageUp','Backspace'].includes(k)){e.preventDefault();prev();}
+    else if(k==='Home')go(0);else if(k==='End')go(N-1);
+    else if(k==='f'||k==='F'){document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen();}
+    else if(k==='b'||k==='B'||k==='.'){const b=document.getElementById('blank');b.style.display=b.style.display==='block'?'none':'block';}
+    else if(k==='?'){const h=document.getElementById('help');h.style.display=h.style.display==='block'?'none':'block';}
+  });
+  vp.addEventListener('click',()=>next());vp.addEventListener('contextmenu',e=>{e.preventDefault();prev();});
+
+  addEventListener('hashchange',()=>{fromHash();render();});
+  fromHash();fit();render();
+  (document.fonts?document.fonts.ready:Promise.resolve()).then(fitAll);
+})();
+</script>
+</body>
+</html>
