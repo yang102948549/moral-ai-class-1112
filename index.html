@@ -298,6 +298,7 @@ h1,h2,h3,p{margin:0;font-weight:inherit}
 .glass .qrl{font-size:26px;font-weight:700;color:#333;margin-top:28px}
 .glass .url{font-size:52px;font-weight:800;letter-spacing:-.02em;color:#111;margin-top:6px;white-space:nowrap}
 .glass .ulink{color:inherit;text-decoration:none;cursor:pointer}
+.glass .qlink{display:block}
 .glass .ulink .ico{width:.5em;height:.5em;margin-left:.22em;vertical-align:.12em;opacity:.55}
 .glass .ulink:hover .ico{opacity:1}
 
@@ -773,7 +774,7 @@ h1,h2,h3,p{margin:0;font-weight:inherit}
 <section class="slide home" data-title="수업 체험해 보기">
   <div class="hbg"></div>
   <div class="glass" data-fx="나타나기" data-delay="0.3">
-    <img src="anotherday-qr.png" alt="onischool.net/anotherday QR 코드">
+    <a class="ulink qlink" href="https://onischool.net/anotherday/" target="_blank" rel="noopener" onclick="event.stopPropagation()"><img src="anotherday-qr.png" alt="onischool.net/anotherday QR 코드"></a>
     <p class="qrl"><!--t:27-1|항목|-->QR 코드를 찍어 바로 체험하기<!--/t--></p>
     <a class="ulink" href="https://onischool.net/anotherday/" target="_blank" rel="noopener" onclick="event.stopPropagation()"><p class="url"><!--t:27-2|주소|-->onischool.net/anotherday<!--/t--><svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" aria-hidden="true"><path d="M9 2h5v5M14 2 7 9M12 10v4H2V4h4"/></svg></p></a>
   </div>
